@@ -1,1 +1,168 @@
 
+import time
+import random
+import string
+
+
+# Normalize phone numbers
+def normalize_phone(phone):
+    digits = "".join(ch for ch in phone if ch.isdigit())
+
+    if len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+
+    return digits
+
+
+# Normalize names
+def normalize_name(name):
+    return " ".join(name.lower().split())
+
+
+# Merge contacts using a dictionary
+def merge_contacts(contacts):
+    groups = {}
+    phone_index = {}
+    next_id = 0
+
+    for contact in contacts:
+        phones = {
+            normalize_phone(p)
+            for p in contact.get("phones", [])
+            if normalize_phone(p)
+        }
+
+        emails = {
+            e.strip().lower()
+            for e in contact.get("emails", [])
+            if e.strip()
+        }
+
+        matched = {phone_index[p] for p in phones
+                   if p in phone_index}
+
+        if matched:
+            group_id = min(matched)
+
+            for old_id in matched:
+                if old_id != group_id:
+                    groups[group_id]["names"].update(
+                        groups[old_id]["names"])
+                    groups[group_id]["phones"].update(
+                        groups[old_id]["phones"])
+                    groups[group_id]["emails"].update(
+                        groups[old_id]["emails"])
+
+                    del groups[old_id]
+
+        else:
+            group_id = next_id
+            next_id += 1
+
+            groups[group_id] = {
+                "names": set(),
+                "phones": set(),
+                "emails": set()
+            }
+
+        groups[group_id]["names"].add(
+            contact.get("name", "").strip())
+
+        groups[group_id]["phones"].update(phones)
+        groups[group_id]["emails"].update(emails)
+
+        for phone in groups[group_id]["phones"]:
+            phone_index[phone] = group_id
+
+    return list(groups.values())
+
+
+# Generate test contacts
+def generate_contacts(n):
+    contacts = []
+
+    for i in range(n):
+        contacts.append({
+            "name": "Person " + str(i),
+            "phones": [str(9000000000 + i)],
+            "emails": [f"person{i}@gmail.com"]
+        })
+
+    return contacts
+
+
+# Compare every pair of contacts
+def pairwise_comparison(n):
+    count = 0
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            count += 1
+
+    return count
+
+
+# Main program
+def main():
+    contacts = [
+        {
+            "name": "Dr. Ravi",
+            "phones": ["+91 98400 12345"],
+            "emails": ["ravi@gmail.com"]
+        },
+        {
+            "name": "ravi kumar",
+            "phones": ["9840012345"],
+            "emails": ["ravi@yahoo.com"]
+        },
+        {
+            "name": "Arun",
+            "phones": ["9876543210"],
+            "emails": []
+        },
+        {
+            "name": "Arun Kumar",
+            "phones": [],
+            "emails": ["arun@gmail.com"]
+        }
+    ]
+
+    print("CONTACT MERGING RESULT")
+
+    result = merge_contacts(contacts)
+
+    for person in result:
+        print("\nNames:", person["names"])
+        print("Phone numbers:", person["phones"])
+        print("Emails:", person["emails"])
+
+    print("\nPERFORMANCE TEST")
+
+    for n in [1000, 100000]:
+        data = generate_contacts(n)
+
+        start = time.perf_counter()
+        merged = merge_contacts(data)
+        end = time.perf_counter()
+
+        print("\nInput contacts:", n)
+        print("Merged contacts:", len(merged))
+        print("Dictionary time:", round(end - start, 6), "seconds")
+
+        comparisons = n * (n - 1) // 2
+        print("Pairwise comparisons required:", comparisons)
+
+        if n == 1000:
+            start = time.perf_counter()
+            pairwise_comparison(n)
+            end = time.perf_counter()
+
+            print("Pairwise time:",
+                  round(end - start, 6), "seconds")
+        else:
+            print("Pairwise time: Not executed (too many comparisons)")
+
+
+if __name__ == "__main__":
+    main()
+
