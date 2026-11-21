@@ -1,1 +1,124 @@
 
+import os
+
+# Input and output folders
+INPUT_FOLDER = "department_files"
+OUTPUT_FOLDER = "output"
+
+os.makedirs(INPUT_FOLDER, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+
+# Validate email address
+def valid_email(email):
+    return (
+        "@" in email
+        and "." in email
+        and email.index("@") > 0
+        and email.index("@") < email.rindex(".")
+    )
+
+
+# Read and process department files
+def process_files():
+    seen = set()
+    master_list = []
+    event_lists = {}
+    errors = []
+    total = 0
+
+    for i in range(1, 6):
+        filename = f"department{i}.txt"
+        filepath = os.path.join(INPUT_FOLDER, filename)
+
+        try:
+            with open(filepath, "r") as file:
+                for line_no, line in enumerate(file, 1):
+                    total += 1
+
+                    try:
+                        parts = line.strip().split("|")
+
+                        if len(parts) != 5:
+                            raise ValueError("Damaged line")
+
+                        reg, name, dept, email, events = parts
+
+                        if not reg or not name or not dept:
+                            raise ValueError("Missing information")
+
+                        if not valid_email(email):
+                            raise ValueError("Invalid email")
+
+                        if reg in seen:
+                            raise ValueError("Duplicate registration")
+
+                        seen.add(reg)
+
+                        record = (
+                            f"{reg}|{name}|{dept}|{email}|{events}"
+                        )
+                        master_list.append(record)
+
+                        for event in events.split(";"):
+                            event = event.strip()
+
+                            if event:
+                                event_lists.setdefault(
+                                    event, []
+                                ).append(record)
+
+                    except Exception as e:
+                        errors.append(
+                            f"{filename} Line {line_no}: {e}"
+                        )
+
+        except FileNotFoundError:
+            errors.append(f"{filename}: File not found")
+
+    # Write master list
+    with open(os.path.join(OUTPUT_FOLDER, "master_list.txt"),
+              "w") as file:
+        for record in master_list:
+            file.write(record + "\n")
+
+    # Write event-wise participant lists
+    for event, participants in event_lists.items():
+        safe_name = "".join(
+            c if c.isalnum() else "_" for c in event
+        )
+
+        with open(
+            os.path.join(OUTPUT_FOLDER, safe_name + ".txt"),
+            "w"
+        ) as file:
+            for participant in participants:
+                file.write(participant + "\n")
+
+    # Write summary report
+    with open(os.path.join(OUTPUT_FOLDER, "summary_report.txt"),
+              "w") as file:
+        file.write("COLLEGE FEST SUMMARY REPORT\n")
+        file.write("---------------------------\n")
+        file.write(f"Total lines processed: {total}\n")
+        file.write(f"Valid registrations: {len(master_list)}\n")
+        file.write(f"Total events: {len(event_lists)}\n")
+        file.write(f"Total errors: {len(errors)}\n")
+
+    # Write error log
+    with open(os.path.join(OUTPUT_FOLDER, "error_log.txt"),
+              "w") as file:
+        for error in errors:
+            file.write(error + "\n")
+
+    print("\nCOLLEGE FEST PROCESSING COMPLETED")
+    print("Valid registrations:", len(master_list))
+    print("Events:", len(event_lists))
+    print("Errors:", len(errors))
+    print("Check the output folder for results.")
+
+
+# Main program
+if __name__ == "__main__":
+    process_files()
+
