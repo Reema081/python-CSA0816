@@ -1,1 +1,212 @@
 
+import sqlite3
+import time
+import re
+from collections import Counter
+
+# Sentiment word lists
+POSITIVE = {"good", "clean", "fast", "helpful", "improved"}
+NEGATIVE = {"bad", "dirty", "slow", "rude", "smoke", "broken"}
+NEGATORS = {"not", "never", "no"}
+
+
+# 1. Sentiment scoring
+def score(text):
+    words = text.lower().replace(".", " ").replace(",", " ").split()
+    total = 0
+
+    for i, word in enumerate(words):
+        if word in POSITIVE:
+            value = 1
+        elif word in NEGATIVE:
+            value = -1
+        else:
+            value = 0
+
+        if i > 0 and words[i - 1] in NEGATORS:
+            value = -value
+
+        total += value
+
+    return total
+
+
+def label(text):
+    s = score(text)
+
+    if s > 0:
+        return "positive"
+    elif s < 0:
+        return "negative"
+    return "neutral"
+
+
+# 2. Complaint summariser
+def summarise(text, k=2):
+    sentences = re.split(r'[.!?]', text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    words = text.lower().split()
+    common = Counter(
+        word.strip(".,!?") for word in words
+    )
+
+    important = {
+        word for word, count in common.most_common(5)
+    }
+
+    selected = []
+
+    for sentence in sentences:
+        if any(word in sentence.lower() for word in important):
+            selected.append(sentence)
+
+        if len(selected) == k:
+            break
+
+    return ". ".join(selected)
+
+
+# 3. Create 50 sample complaints
+complaints = [
+    "Roads are clean and buses are fast.",
+    "Smoke from factory makes air bad.",
+    "Staff are not helpful.",
+    "Service improved and roads are clean.",
+    "The bus service is slow.",
+    "The station is good and clean.",
+    "The bus is broken and dirty.",
+    "Staff are helpful and polite.",
+    "There is no smoke near the station.",
+    "The service is not good.",
+] * 5
+
+# Manually assigned expected labels
+manual_labels = [
+    "positive", "negative", "negative", "positive",
+    "negative", "positive", "negative", "positive",
+    "positive", "negative"
+] * 5
+
+
+# 4. Process complaints and compare labels
+def analyse_complaints():
+    correct = 0
+
+    print("\nSENTIMENT ANALYSIS")
+    print("------------------")
+
+    for i, complaint in enumerate(complaints):
+        predicted = label(complaint)
+
+        if predicted == manual_labels[i]:
+            correct += 1
+
+        print(predicted, "|", complaint)
+
+    agreement = (correct / len(complaints)) * 100
+
+    print("\nTotal complaints:", len(complaints))
+    print("Correct labels:", correct)
+    print("Agreement:", round(agreement, 2), "%")
+
+
+# 5. Generate summaries
+def show_summaries():
+    print("\nCOMPLAINT SUMMARIES")
+    print("-------------------")
+
+    for complaint in complaints[:5]:
+        print("Original:", complaint)
+        print("Summary:", summarise(complaint))
+        print()
+
+
+# 6. SQLite database and indexing
+def database_test():
+    connection = sqlite3.connect("complaints.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS complaints (
+            id INTEGER PRIMARY KEY,
+            station TEXT,
+            day TEXT,
+            complaint TEXT
+        )
+    """)
+
+    cursor.execute("DELETE FROM complaints")
+
+    data = []
+
+    for i in range(1000):
+        data.append((
+            "Station" + str(i % 100),
+            "Day" + str(i % 30),
+            complaints[i % len(complaints)]
+        ))
+
+    cursor.executemany("""
+        INSERT INTO complaints (station, day, complaint)
+        VALUES (?, ?, ?)
+    """, data)
+
+    connection.commit()
+
+    # Query before indexing
+    start = time.perf_counter()
+
+    cursor.execute("""
+        SELECT * FROM complaints
+        WHERE station = ? AND day = ?
+    """, ("Station10", "Day10"))
+
+    cursor.fetchall()
+    before = time.perf_counter() - start
+
+    # Create index
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_station_day
+        ON complaints(station, day)
+    """)
+
+    connection.commit()
+
+    # Query after indexing
+    start = time.perf_counter()
+
+    cursor.execute("""
+        SELECT * FROM complaints
+        WHERE station = ? AND day = ?
+    """, ("Station10", "Day10"))
+
+    cursor.fetchall()
+    after = time.perf_counter() - start
+
+    print("\nDATABASE PERFORMANCE")
+    print("--------------------")
+    print("Time before index:", round(before, 6))
+    print("Time after index:", round(after, 6))
+
+    connection.close()
+
+
+# 7. Main program
+def main():
+    print("COLLEGE COMPLAINT ANALYSIS SYSTEM")
+
+    analyse_complaints()
+    show_summaries()
+    database_test()
+
+    print("\nFINAL DECISION")
+    print("Dictionary-based word counting is efficient.")
+    print("SQLite indexing helps station and day searches.")
+    print("Simple sentiment scoring is useful for basic analysis.")
+    print("A trained model may be needed for complex complaints.")
+
+
+if __name__ == "__main__":
+    main()
+
