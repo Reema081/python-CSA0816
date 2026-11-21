@@ -1,1 +1,85 @@
+from pathlib import Path
+
+code = '''from decimal import Decimal, ROUND_HALF_UP
+
+# Task 12: Milk Payment Calculator
+# April to June rate card given in the question.
+APR_JUN_BASE_RATE = Decimal("32.00")
+APR_JUN_FAT_STEP_RATE = Decimal("0.45")
+
+BONUS_LIMIT = Decimal("500")
+BONUS_PER_LITRE = Decimal("0.50")
+
+
+def get_rate_card(month):
+    """Return the base rate and fat-step rate for the selected month."""
+    if month in ["April", "May", "June"]:
+        print("\\nApril-June seasonal rate card selected.")
+        return APR_JUN_BASE_RATE, APR_JUN_FAT_STEP_RATE
+
+    # The question does not provide rates for the other season.
+    # Ask the user to enter the original rate card instead of guessing.
+    print("\\nEnter the rate card for the other season:")
+    base_rate = Decimal(input("Base rate per litre (Rs): "))
+    fat_step_rate = Decimal(input("Value of each fat step (Rs): "))
+    return base_rate, fat_step_rate
+
+
+def calculate_milk_rate(fat, base_rate, fat_step_rate):
+    """
+    Assumption: one fat step means 1.00 fat unit.
+    SNF is recorded, but no SNF-based payment rule is given.
+    """
+    fat_steps = fat
+    rate = base_rate + (fat_steps * fat_step_rate)
+    return rate.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def calculate_bonus(total_litres):
+    """Give Rs 0.50 per litre only when supply is more than 500 litres."""
+    if total_litres > BONUS_LIMIT:
+        return BONUS_PER_LITRE
+    return Decimal("0.00")
+
+
+def main():
+    print("===== MILK PAYMENT CALCULATOR =====")
+
+    month = input("Enter month (e.g., April or July): ").strip().title()
+    fat = Decimal(input("Enter fat reading: ")).quantize(Decimal("0.01"))
+    snf = Decimal(input("Enter SNF reading: ")).quantize(Decimal("0.01"))
+    litres = Decimal(input("Enter total litres supplied in 10 days: "))
+
+    if fat < 0 or snf < 0 or litres < 0:
+        print("Please enter values that are zero or greater.")
+        return
+
+    base_rate, fat_step_rate = get_rate_card(month)
+
+    milk_rate = calculate_milk_rate(fat, base_rate, fat_step_rate)
+    bonus_rate = calculate_bonus(litres)
+    final_rate = (milk_rate + bonus_rate).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    total_payment = (final_rate * litres).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+    print("\\n----- PAYMENT DETAILS -----")
+    print(f"Fat reading       : {fat:.2f}")
+    print(f"SNF reading       : {snf:.2f}")
+    print(f"Milk supplied     : {litres:.2f} litres")
+    print(f"Milk rate         : Rs {milk_rate:.2f} per litre")
+    print(f"Bonus rate        : Rs {bonus_rate:.2f} per litre")
+    print(f"Final rate        : Rs {final_rate:.2f} per litre")
+    print(f"Total payment     : Rs {total_payment:.2f}")
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+path = Path("/mnt/data/task12_milk_payment.py")
+path.write_text(code, encoding="utf-8")
+print(f"Created: {path}")
 
