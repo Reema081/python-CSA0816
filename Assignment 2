@@ -1,1 +1,42 @@
+import time
 
+# Original Design: Nested Loops
+def original_count(numbers):
+    count = 0
+
+    for i in range(len(numbers)):
+        for j in range(i + 1, len(numbers)):
+            count += 1
+
+    return count
+
+
+# Redesigned Solution: Dictionary
+def redesigned_count(numbers):
+    frequency = {}
+    count = 0
+
+    for num in numbers:
+        frequency[num] = frequency.get(num, 0) + 1
+        count += 1
+
+    return count
+
+
+# Main Program
+numbers = list(map(int, input("Enter numbers separated by spaces: ").split()))
+
+start = time.time()
+old_operations = original_count(numbers)
+old_time = time.time() - start
+
+start = time.time()
+new_operations = redesigned_count(numbers)
+new_time = time.time() - start
+
+print("\n--- PERFORMANCE COMPARISON ---")
+print("Input size:", len(numbers))
+print("Original operations:", old_operations)
+print("Redesigned operations:", new_operations)
+print("Original time:", old_time)
+print("Redesigned time:", new_time)
